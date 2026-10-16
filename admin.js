@@ -96,7 +96,8 @@
         <div class="admin-actions">
         <button class="btn sm" id="refresh">↻ 重新整理</button>
         <button class="btn sm" id="csv">匯出 Excel (CSV)</button>
-        ${Store.mode === "local" ? `<button class="btn sm" id="demo">產生測試資料</button><button class="btn sm danger" id="clear">清除本地資料</button>` : ""}
+        ${Store.mode === "local" ? `<button class="btn sm" id="demo">產生測試資料</button>` : ""}
+        <button class="btn sm danger" id="clearAll" ${data.length ? "" : "disabled"}>清除全部紀錄</button>
         </div>
       </div>
       <div id="view"></div>`;
@@ -105,8 +106,8 @@
     document.getElementById("csv").onclick = exportCsv;
     if (Store.mode === "local") {
       document.getElementById("demo").onclick = () => { makeDemo(); load(); };
-      document.getElementById("clear").onclick = () => { if (confirm("確定清除這台電腦上所有練習資料？")) { Store.clearLocal(); load(); } };
     }
+    document.getElementById("clearAll").onclick = () => bulkDelete(data, "全部");
     if (tab !== "wall" && proj) { proj = false; document.body.classList.remove("projector"); }
     const v = document.getElementById("view");
     if (!data.length && tab !== "wall") { v.innerHTML = `<div class="card empty">目前還沒有練習紀錄。${Store.mode === "local" ? "<br>可以先到練習頁做幾題，或按「產生測試資料」看看後台的樣子。" : ""}</div>`; return; }
@@ -208,7 +209,8 @@
         (!filt.teacher || teacherKey(r) === filt.teacher) &&
         (!q || (r.teacher_name + compose(r.method, r.draft1) + compose(r.method, r.draft2) + (r.reflection || "")).includes(q)));
       document.getElementById("list").innerHTML = rs.length ? `
-        <p class="small muted">共 ${rs.length} 筆</p>
+        <div class="list-head"><span class="small muted">共 ${rs.length} 筆</span>
+          ${rs.length < data.length ? `<button class="btn sm danger" id="delFiltered">刪除這 ${rs.length} 筆</button>` : ""}</div>
         <div class="table-wrap"><table class="cards">
           <thead><tr><th>時間</th><th>老師</th><th>學校</th><th>情境</th><th>方法</th><th class="c">自評</th><th>判斷式用語</th><th>AI 星等</th><th class="c">作品牆</th></tr></thead>
           <tbody>${rs.map(r => `<tr class="click" data-id="${esc(r.id)}">
@@ -220,6 +222,8 @@
             <td data-label="作品牆" class="c">${r.hidden ? `<span class="badge warn">已隱藏</span>` : `<span class="small muted">顯示</span>`}</td></tr>`).join("")}</tbody>
         </table></div>` : `<div class="empty">沒有符合條件的紀錄</div>`;
       document.querySelectorAll("#list tr[data-id]").forEach(tr => tr.onclick = () => openDetail(tr.dataset.id));
+      const df = document.getElementById("delFiltered");
+      if (df) df.onclick = () => bulkDelete(rs, "目前篩選出的");
     };
     document.getElementById("fSc").onchange = e => { filt.sc = e.target.value; draw(); };
     document.getElementById("fSch").onchange = e => { filt.school = e.target.value; draw(); };
@@ -381,6 +385,19 @@
       }
     };
     tick();
+  }
+
+  /* ---------- 批次刪除（需輸入「確認刪除」） ---------- */
+  async function bulkDelete(rows, label) {
+    if (!rows.length) return;
+    const ans = prompt(`即將永久刪除${label} ${rows.length} 筆練習紀錄，刪除後無法復原。\n建議先按「匯出 Excel (CSV)」備份。\n\n確定要刪除，請輸入「確認刪除」：`);
+    if (ans === null) return;
+    if (ans.trim() !== "確認刪除") { alert("輸入不正確，已取消，沒有刪除任何資料。"); return; }
+    try {
+      await Store.deleteMany(rows.map(r => r.id));
+      alert(`已刪除 ${rows.length} 筆紀錄。`);
+    } catch (e) { alert("刪除失敗：" + e.message); }
+    await load();
   }
 
   /* ---------- 匯出 CSV ---------- */

@@ -85,6 +85,16 @@ window.Store = (function () {
     if (error) throw new Error(error.message);
   }
 
+  /* 批次刪除（每次 100 筆） */
+  async function deleteMany(ids) {
+    if (!cloud) { const set = new Set(ids); lsSet(lsGet().filter(x => !set.has(x.id))); return; }
+    const c = await getClient();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { error } = await c.from("attempts").delete().in("id", ids.slice(i, i + 100));
+      if (error) throw new Error(error.message);
+    }
+  }
+
   async function deleteAttempt(id) {
     if (!cloud) { lsSet(lsGet().filter(x => x.id !== id)); return; }
     const c = await getClient();
@@ -116,6 +126,6 @@ window.Store = (function () {
   /* ---------- 本地模式專用 ---------- */
   function clearLocal() { lsSet([]); }
 
-  return { mode: cloud ? "cloud" : "local", uuid, getClient, saveAttempt, listAttempts, setFeatured, setHidden, deleteAttempt,
+  return { mode: cloud ? "cloud" : "local", uuid, getClient, saveAttempt, listAttempts, setFeatured, setHidden, deleteMany, deleteAttempt,
            currentAdmin, signIn, signOut, clearLocal, _lsSet: lsSet, _lsGet: lsGet };
 })();

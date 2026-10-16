@@ -366,6 +366,8 @@ body.projector .wall-card .by { font-size: 18px; }
   .wall-card .peek { opacity: 1; }
 }
 
+.list-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+
 .hidden { display: none !important; }
 .empty { text-align: center; color: var(--ink-3); padding: 44px 10px; }
 
